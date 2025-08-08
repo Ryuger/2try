@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}Администрирование - Мониторинг хостов{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i data-feather="settings"></i>
+            Административная панель
+        </h1>
+    </div>
+</div>
+
+<!-- Навигация по вкладкам -->
+<ul class="nav nav-tabs mb-4" id="adminTabs">
+    <li class="nav-item">
+        <a class="nav-link active" id="whitelist-tab" data-bs-toggle="tab" href="#whitelist">
+            <i data-feather="shield"></i>
+            Белый список IP
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="logs-tab" data-bs-toggle="tab" href="#logs">
+            <i data-feather="file-text"></i>
+            Логи доступа
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="blocked-tab" data-bs-toggle="tab" href="#blocked">
+            <i data-feather="x-circle"></i>
+            Заблокированные IP
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" id="users-tab" data-bs-toggle="tab" href="#users">
+            <i data-feather="users"></i>
+            Пользователи
+        </a>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- Белый список IP -->
+    <div class="tab-pane fade show active" id="whitelist">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="dashboard-card">
+                    <h3 class="h5 mb-3">
+                        <i data-feather="shield-check"></i>
+                        Разрешенные IP адреса
+                    </h3>
+                    
+                    {% if whitelist %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>IP адрес</th>
+                                        <th>Действия</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ip in whitelist %}
+                                        <tr>
+                                            <td class="font-monospace">{{ ip }}</td>
+                                            <td>
+                                                <form method="POST" action="{{ url_for('update_whitelist') }}" class="d-inline">
+                                                    <input type="hidden" name="action" value="remove">
+                                                    <input type="hidden" name="ip" value="{{ ip }}">
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" 
+                                                            onclick="return confirm('Удалить IP {{ ip }} из белого списка?')">
+                                                        <i data-feather="trash-2"></i>
+                                                        Удалить
+                                                    </button>
+                                                </form>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i data-feather="info"></i>
+                            Белый список пуст
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="col-md-4">
+                <div class="dashboard-card">
+                    <h3 class="h6 mb-3">Добавить IP в белый список</h3>
+                    <form method="POST" action="{{ url_for('update_whitelist') }}">
+                        <input type="hidden" name="action" value="add">
+                        <div class="mb-3">
+                            <label for="new_ip" class="form-label">IP адрес:</label>
+                            <input type="text" id="new_ip" name="ip" class="form-control font-monospace" 
+                                   placeholder="192.168.1.1" required>
+                            <div class="form-text">
+                                Поддерживаются отдельные IP и подсети (CIDR)
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i data-feather="plus"></i>
+                            Добавить
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Логи доступа -->
+    <div class="tab-pane fade" id="logs">
+        <div class="dashboard-card">
+            <h3 class="h5 mb-3">
+                <i data-feather="activity"></i>
+                Последние попытки доступа
+            </h3>
+            
+            {% if access_logs %}
+                <div class="access-log">
+                    {% for log in access_logs %}
+                        <div class="log-entry log-{{ log.status }}">
+                            <strong>{{ log.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</strong>
+                            <span class="text-muted">|</span>
+                            <span class="font-monospace">{{ log.ip_address }}</span>
+                            <span class="text-muted">|</span>
+                            <span class="badge bg-{{ 'success' if log.status == 'allowed' else 'danger' if log.status == 'blocked' else 'warning' }}">
+                                {{ log.status }}
+                            </span>
+                            <span class="text-muted">|</span>
+                            {{ log.request_path }}
+                            {% if log.user_id %}
+                                <span class="text-muted">| Пользователь: {{ log.user_id }}</span>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    <i data-feather="info"></i>
+                    Логи доступа отсутствуют
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Заблокированные IP -->
+    <div class="tab-pane fade" id="blocked">
+        <div class="dashboard-card">
+            <h3 class="h5 mb-3">
+                <i data-feather="shield-off"></i>
+                Заблокированные IP адреса
+            </h3>
+            
+            {% if blocked_ips %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>IP адрес</th>
+                                <th>Попыток</th>
+                                <th>Первая попытка</th>
+                                <th>Последняя попытка</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ip_attempt in blocked_ips %}
+                                <tr>
+                                    <td class="font-monospace">{{ ip_attempt.ip_address }}</td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ ip_attempt.attempt_count }}</span>
+                                    </td>
+                                    <td>
+                                        {% if ip_attempt.first_attempt %}
+                                            {{ ip_attempt.first_attempt[:16] }}
+                                        {% else %}
+                                            Неизвестно
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if ip_attempt.last_attempt %}
+                                            {{ ip_attempt.last_attempt[:16] }}
+                                        {% else %}
+                                            Неизвестно
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <form method="POST" action="{{ url_for('unblock_ip') }}" class="d-inline">
+                                            <input type="hidden" name="ip" value="{{ ip_attempt.ip_address }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-success"
+                                                    onclick="return confirm('Разблокировать IP {{ ip_attempt.ip_address }}?')">
+                                                <i data-feather="unlock"></i>
+                                                Разблокировать
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-success">
+                    <i data-feather="check-circle"></i>
+                    Заблокированных IP адресов нет
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Пользователи -->
+    <div class="tab-pane fade" id="users">
+        <div class="dashboard-card">
+            <h3 class="h5 mb-3">
+                <i data-feather="user-check"></i>
+                Зарегистрированные пользователи
+            </h3>
+            
+            <div class="alert alert-info">
+                <i data-feather="info"></i>
+                <strong>Информация:</strong> Управление пользователями осуществляется через Replit Auth. 
+                Здесь отображаются пользователи, которые уже входили в систему.
+            </div>
+            
+            <a href="{{ url_for('manage_users') }}" class="btn btn-primary">
+                <i data-feather="users"></i>
+                Управление пользователями
+            </a>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Автоматическое обновление логов каждые 30 секунд
+setInterval(function() {
+    if (document.getElementById('logs-tab').classList.contains('active')) {
+        location.reload();
+    }
+}, 30000);
+
+// Инициализация Feather Icons после загрузки
+document.addEventListener('DOMContentLoaded', function() {
+    feather.replace();
+});
+</script>
+{% endblock %}

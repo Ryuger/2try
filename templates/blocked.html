@@ -1,0 +1,36 @@
+
+{% extends "base.html" %}
+
+{% block title %}Доступ заблокирован - Мониторинг хостов{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="dashboard-card text-center">
+            <i class="fas fa-shield-alt fa-4x text-danger mb-4"></i>
+            <h1 class="h3 mb-3">Доступ заблокирован</h1>
+            
+            <div class="alert alert-danger">
+                <h5><i class="fas fa-exclamation-triangle me-2"></i>Ваш IP адрес заблокирован</h5>
+                <p class="mb-2"><strong>IP адрес:</strong> {{ client_ip }}</p>
+                <p class="mb-0"><strong>Причина:</strong> {{ reason }}</p>
+            </div>
+            
+            <div class="mt-4">
+                <h6>Возможные причины блокировки:</h6>
+                <ul class="list-unstyled text-muted">
+                    <li><i class="fas fa-times text-danger me-2"></i>Превышено количество неудачных попыток входа (3 попытки)</li>
+                    <li><i class="fas fa-times text-danger me-2"></i>IP адрес не находится в белом списке</li>
+                    <li><i class="fas fa-times text-danger me-2"></i>Подозрительная активность</li>
+                </ul>
+            </div>
+            
+            <div class="mt-4">
+                <p class="text-muted">
+                    Если вы считаете, что это ошибка, обратитесь к администратору системы.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

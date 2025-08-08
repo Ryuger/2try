@@ -1,0 +1,10 @@
+{
+  "superadmin": {
+    "username": "superadmin",
+    "password_hash": "d8b772f518f25f310ad1141acc7a3370f4b3139aaf978f9c8f02f230e1cc085f",
+    "role": "superadmin",
+    "created_at": "2025-08-08T12:21:11.815463",
+    "is_active": true,
+    "last_login": null
+  }
+}

@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">
+            <i data-feather="activity"></i>
+            Мониторинг хостов
+        </h1>
+    </div>
+</div>
+
+{% if groups %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <label for="group" class="form-label">Выберите группу:</label>
+        <select id="group" class="form-select">
+            {% for group in groups %}
+                <option value="{{ group }}" {% if group == selected_group %}selected{% endif %}>{{ group }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if selected_group %}
+<!-- Вкладки подгрупп -->
+{% if subgroups|length > 1 %}
+<div class="subgroup-tabs mb-4">
+    {% for subgroup in subgroups %}
+        {% set status_class = subgroup_statuses.get(subgroup, {}).get('status', 'secondary') if subgroup != 'Все' else 'secondary' %}
+        <a href="#" class="subgroup-tab status-{{ status_class }} {% if subgroup == selected_subgroup %}active{% endif %}"
+           data-subgroup="{{ subgroup }}">
+            <span class="status-indicator status-{{ status_class }}"></span>
+            {{ subgroup }}
+            {% if subgroup != 'Все' and subgroup_statuses.get(subgroup) %}
+                <small class="text-muted">
+                    ({{ subgroup_statuses[subgroup]['up'] }}/{{ subgroup_statuses[subgroup]['total'] }})
+                </small>
+            {% endif %}
+        </a>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Основные вкладки -->
+<div class="border-b border-gray-200 mb-4">
+    <nav class="nav nav-tabs">
+        <a href="#hosts" class="nav-link tab-link" data-tab="hosts">
+            <i data-feather="server"></i>
+            Список хостов
+        </a>
+        <a href="#history" class="nav-link tab-link" data-tab="history">
+            <i data-feather="clock"></i>
+            История пингов
+        </a>
+        <a href="#dashboard" class="nav-link tab-link" data-tab="dashboard">
+            <i data-feather="bar-chart-2"></i>
+            Дашборд
+        </a>
+    </nav>
+</div>
+
+<!-- Вкладка: Список хостов -->
+<div id="hosts" class="tab-content">
+    <div class="dashboard-card">
+        <div class="card-header">
+            <h5 class="card-title mb-0" id="hosts-title">
+                <i data-feather="server"></i>
+                Список хостов в группе '{{ selected_group }}'
+            </h5>
+        </div>
+
+        {% if hosts %}
+            <div class="table-responsive">
+                <table class="table table-hover host-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Статус</th>
+                            <th>Адрес</th>
+                            <th>Описание</th>
+                            <th>Подгруппа</th>
+                            <th width="50">
+                                <i data-feather="activity" title="Кликните по строке для перехода к логам"></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for host in hosts %}
+                            {% set status_class = host_statuses.get(host.address, 'secondary') %}
+                            <tr class="host-row status-{{ status_class }}" style="cursor: pointer;" title="Нажмите для просмотра логов">
+                                <td>
+                                    <span class="status-indicator status-{{ status_class }}"></span>
+                                </td>
+                                <td class="fw-bold">{{ host.address }}</td>
+                                <td>{{ host.description }}</td>
+                                <td>
+                                    <span class="badge bg-secondary">{{ host.subgroup }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <i data-feather="arrow-right" class="text-muted"></i>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i data-feather="info"></i>
+                Список хостов пуст или группа не существует.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Вкладка: История пингов -->
+<div id="history" class="tab-content">
+    <div class="dashboard-card">
+        <h2 class="h4 mb-3">История пингов</h2>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="host" class="form-label">Выберите хост:</label>
+                <select id="host" class="form-select">
+                    <option value="">-- Выберите хост --</option>
+                    {% for host in hosts %}
+                        <option value="{{ host.address }}" {% if host.address == selected_host %}selected{% endif %}>
+                            {{ host.address }} ({{ host.description }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-3">
+                <label for="start_time" class="form-label">Начало периода:</label>
+                <input type="datetime-local" id="start_time" value="{{ start_time or '' }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="end_time" class="form-label">Конец периода:</label>
+                <input type="datetime-local" id="end_time" value="{{ end_time or '' }}" class="form-control">
+            </div>
+            <div class="col-md-3">
+                <label for="status" class="form-label">Статус:</label>
+                <select id="status" class="form-select">
+                    <option value="">Все</option>
+                    <option value="Доступен" {% if status == 'Доступен' %}selected{% endif %}>Доступен</option>
+                    <option value="Недоступен" {% if status == 'Недоступен' %}selected{% endif %}>Недоступен</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-primary filter-history-btn w-100">
+                    <i data-feather="filter"></i>
+                    Фильтровать
+                </button>
+            </div>
+        </div>
+
+        {% if ping_history %}
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Время</th>
+                            <th>Статус</th>
+                            <th>Задержка</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in ping_history %}
+                            <tr>
+                                <td>{{ entry.timestamp }}</td>
+                                <td>
+                                    <span class="badge bg-{{ 'success' if entry.status == 'Доступен' else 'danger' }}">
+                                        {{ entry.status }}
+                                    </span>
+                                </td>
+                                <td>{{ entry.latency }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="alert alert-info">
+                <i data-feather="info"></i>
+                История пингов пуста или хост не выбран.
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Вкладка: Дашборд -->
+<div id="dashboard" class="tab-content">
+    <h2 class="h4 mb-4">
+        Дашборд для группы '{{ selected_group }}'
+        {% if selected_subgroup != 'Все' %}
+            / подгруппа '{{ selected_subgroup }}'
+        {% endif %}
+    </h2>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <h3 class="h5 mb-3">
+                    <i data-feather="check-circle"></i>
+                    Процент доступности хостов
+                </h3>
+                <div class="chart-container">
+                    <canvas id="availabilityChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card">
+                <h3 class="h5 mb-3">
+                    <i data-feather="zap"></i>
+                    Средняя задержка (сек)
+                </h3>
+                <div class="chart-container">
+                    <canvas id="latencyChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 mb-4">
+            <div class="dashboard-card">
+                <h3 class="h5 mb-3">
+                    <i data-feather="trending-down"></i>
+                    Недоступные хосты по времени (последние 24 часа)
+                </h3>
+                <div class="chart-container">
+                    <canvas id="downChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+{% else %}
+<div class="alert alert-warning">
+    <i data-feather="alert-triangle"></i>
+    <strong>Внимание:</strong> Не найдено групп хостов для мониторинга. Пожалуйста, настройте базу данных.
+</div>
+{% endif %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+    // Function to update the host list title and selected host in history filter
+    function updateUI(selectedGroup, selectedSubgroup, selectedHost) {
+        const hostsTitleElement = document.getElementById('hosts-title');
+        if (hostsTitleElement) {
+            let newTitle = `Список хостов в группе '${selectedGroup}'`;
+            if (selectedSubgroup && selectedSubgroup !== 'Все') {
+                newTitle += ` / подгруппа '${selectedSubgroup}'`;
+            }
+            hostsTitleElement.innerHTML = `<i data-feather=\"server\"></i> ${newTitle}`;
+        }
+
+        const hostSelectElement = document.getElementById('host');
+        if (hostSelectElement && selectedHost) {
+            hostSelectElement.value = selectedHost;
+        }
+        feather.replace();
+    }
+
+    // Event listener for group change
+    document.getElementById('group').addEventListener('change', function() {
+        const selectedGroup = this.value;
+        // Here you would typically fetch subgroups and update the subgroup tabs via AJAX
+        // For now, we'll simulate an update by calling updateUI with empty subgroup/host
+        updateUI(selectedGroup, '', '');
+        // Clear host list and history data until new data is loaded
+        document.querySelector('.host-table tbody').innerHTML = '<tr><td colspan="5" class="text-center">Загрузка...</td></tr>';
+        document.querySelector('#history .table-responsive').innerHTML = '<div class="alert alert-info"><i data-feather="info"></i> Историю пингов можно посмотреть, выбрав хост.</div>';
+    });
+
+    // Event listeners for subgroup tab clicks
+    document.querySelectorAll('.subgroup-tab').forEach(tab => {
+        tab.addEventListener('click', function(event) {
+            event.preventDefault();
+            const selectedSubgroup = this.getAttribute('data-subgroup');
+            const currentGroup = document.getElementById('group').value;
+
+            // Update active class
+            document.querySelectorAll('.subgroup-tab').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // Update the title
+            updateUI(currentGroup, selectedSubgroup, '');
+            // Clear host list until new data is loaded
+            document.querySelector('.host-table tbody').innerHTML = '<tr><td colspan="5" class="text-center">Загрузка...</td></tr>';
+        });
+    });
+
+    // Event listener for host selection in history tab
+    document.getElementById('host').addEventListener('change', function() {
+        const selectedHost = this.value;
+        const currentGroup = document.getElementById('group').value;
+        let selectedSubgroup = '';
+        const activeSubgroupTab = document.querySelector('.subgroup-tab.active');
+        if (activeSubgroupTab) {
+            selectedSubgroup = activeSubgroupTab.getAttribute('data-subgroup');
+        }
+        // Update UI to reflect the selected host (though it primarily affects history load)
+        updateUI(currentGroup, selectedSubgroup, selectedHost);
+        // TODO: Fetch and display history for the selected host
+    });
+
+    // Filter history button click
+    document.querySelector('.filter-history-btn').addEventListener('click', function() {
+        const selectedHost = document.getElementById('host').value;
+        // TODO: Fetch history with filters and update the history table
+        if (selectedHost) {
+             document.querySelector('#history .table-responsive').innerHTML = '<tr><td colspan="3" class="text-center">Загрузка истории...</td></tr>';
+        } else {
+            document.querySelector('#history .table-responsive').innerHTML = '<div class="alert alert-info"><i data-feather="info"></i> Историю пингов можно посмотреть, выбрав хост.</div>';
+        }
+    });
+
+    // Initial UI update on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        const selectedGroup = document.getElementById('group') ? document.getElementById('group').value : '';
+        let selectedSubgroup = '';
+        const activeSubgroupTab = document.querySelector('.subgroup-tab.active');
+        if (activeSubgroupTab) {
+            selectedSubgroup = activeSubgroupTab.getAttribute('data-subgroup');
+        }
+        const selectedHost = document.getElementById('host') ? document.getElementById('host').value : '';
+        updateUI(selectedGroup, selectedSubgroup, selectedHost);
+    });
+</script>
+{% endblock scripts %}
